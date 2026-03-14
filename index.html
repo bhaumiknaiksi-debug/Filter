@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0a0a0f">
+<title>FILTR — Discover Your Cinema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a84c;
+    --gold-light: #e8c878;
+    --gold-dim: #8a6f32;
+    --bg: #0a0a0f;
+    --bg2: #11111a;
+    --bg3: #181824;
+    --surface: #1e1e2e;
+    --surface2: #252538;
+    --text: #e8e4d8;
+    --text-dim: #7a7870;
+    --text-muted: #4a4840;
+    --red: #c44;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ══════════════════════════════
+     LANDING SCREEN
+  ══════════════════════════════ */
+  #screen-landing {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background: radial-gradient(ellipse 80% 60% at 50% 30%, #1a1520 0%, var(--bg) 70%);
+  }
+
+  .landing-logo {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .landing-logo h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: clamp(52px, 16vw, 88px);
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    line-height: 1;
+    animation: fadeDown 0.8s ease both;
+  }
+
+  .landing-logo p {
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    color: var(--text-dim);
+    margin-top: 10px;
+    text-transform: uppercase;
+    animation: fadeDown 0.8s 0.15s ease both;
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+
+  .landing-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid rgba(201,168,76,0.12);
+    border-radius: 16px;
+    padding: 32px 28px;
+    animation: fadeUp 0.8s 0.3s ease both;
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+
+  .field-label {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .api-input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Jost', monospace;
+    font-size: 14px;
+    font-weight: 300;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .api-input:focus { border-color: rgba(201,168,76,0.4); }
+
+  .begin-btn {
+    width: 100%;
+    margin-top: 16px;
+    background: var(--gold);
+    color: #0a0a0f;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 17px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.2s, transform 0.1s;
+    -webkit-appearance: none;
+  }
+  .begin-btn:hover { background: var(--gold-light); }
+  .begin-btn:active { transform: scale(0.98); }
+  .begin-btn.loading { opacity: 0.6; pointer-events: none; }
+
+  .landing-footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+  .landing-footer a { color: var(--gold-dim); text-decoration: none; }
+
+  .error-toast {
+    margin-top: 14px;
+    background: rgba(180,50,50,0.2);
+    border: 1px solid rgba(180,50,50,0.3);
+    border-radius: 20px;
+    padding: 12px 18px;
+    text-align: center;
+    font-size: 13px;
+    color: #e08080;
+    display: none;
+  }
+  .error-toast.show { display: block; }
+
+  /* ══════════════════════════════
+     MAIN APP SCREEN
+  ══════════════════════════════ */
+  #screen-app {
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  /* HEADER */
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 0 20px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .header-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    font-size: 16px;
+  }
+  .icon-btn:hover, .icon-btn.active { background: var(--surface2); color: var(--gold); border-color: rgba(201,168,76,0.3); }
+
+  /* SEARCH BAR */
+  .search-bar {
+    padding: 0 0 14px;
+    display: none;
+  }
+  .search-bar.visible { display: block; }
+
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    padding: 11px 20px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .search-input:focus { border-color: rgba(201,168,76,0.3); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  /* GENRE CHIPS */
+  .genre-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px 20px;
+    scrollbar-width: none;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .genre-strip::-webkit-scrollbar { display: none; }
+
+  .chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    -webkit-appearance: none;
+  }
+  .chip:hover { border-color: rgba(201,168,76,0.3); color: var(--gold-dim); }
+  .chip.active { background: rgba(201,168,76,0.12); border-color: rgba(201,168,76,0.5); color: var(--gold); }
+
+  /* SECTION LABEL */
+  .section-label {
+    padding: 20px 20px 12px;
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* MOVIE GRID */
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0 16px 24px;
+  }
+
+  @media (min-width: 480px) {
+    .movie-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .movie-card {
+    cursor: pointer;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    position: relative;
+    transition: transform 0.2s;
+    aspect-ratio: 2/3;
+  }
+  .movie-card:hover { transform: scale(1.02); }
+  .movie-card:active { transform: scale(0.98); }
+
+  .movie-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .movie-poster-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--surface2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 32px;
+  }
+
+  .movie-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 12px 10px;
+  }
+
+  .movie-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .movie-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .movie-year {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.05em;
+  }
+
+  .movie-rating {
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+
+  /* LOAD MORE */
+  .load-more-btn {
+    display: block;
+    margin: 8px auto 40px;
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 24px;
+    color: var(--gold-dim);
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-appearance: none;
+  }
+  .load-more-btn:hover { background: rgba(201,168,76,0.08); color: var(--gold); }
+
+  /* SKELETON */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 10px;
+    aspect-ratio: 2/3;
+  }
+
+  /* ══════════════════════════════
+     DETAIL MODAL
+  ══════════════════════════════ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    width: 100%;
+    max-width: 560px;
+    max-height: 92vh;
+    background: var(--bg2);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    overflow-y: auto;
+    scrollbar-width: none;
+    animation: slideUp 0.35s cubic-bezier(0.25,1,0.5,1) both;
+  }
+  .modal::-webkit-scrollbar { display: none; }
+
+  .modal-hero {
+    position: relative;
+    height: 300px;
+  }
+
+  .modal-backdrop {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.5);
+    display: block;
+  }
+
+  .modal-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--bg2) 0%, transparent 60%);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: white;
+    font-size: 18px;
+    border: none;
+    z-index: 10;
+  }
+
+  .modal-body {
+    padding: 20px 24px 40px;
+  }
+
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.15;
+  }
+
+  .modal-tagline {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 4px;
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  .modal-stats {
+    display: flex;
+    gap: 20px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .stat-value {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text);
+  }
+  .stat-value.gold { color: var(--gold); }
+
+  .modal-genres {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+
+  .genre-tag {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 12px;
+    color: var(--gold-dim);
+  }
+
+  .modal-overview {
+    font-size: 14px;
+    line-height: 1.75;
+    color: rgba(232,228,216,0.75);
+    margin: 16px 0;
+  }
+
+  .modal-section-title {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin: 20px 0 12px;
+  }
+
+  .cast-strip {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .cast-strip::-webkit-scrollbar { display: none; }
+
+  .cast-card {
+    flex-shrink: 0;
+    width: 64px;
+    text-align: center;
+  }
+
+  .cast-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--surface2);
+    display: block;
+    margin: 0 auto 6px;
+  }
+
+  .cast-name {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* SPINNER */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(10,10,15,0.3);
+    border-top-color: rgba(10,10,15,0.9);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* LOADING SCREEN */
+  .loading-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    gap: 24px;
+  }
+  .loading-screen.hidden { display: none; }
+
+  .loading-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .loading-bar {
+    width: 120px;
+    height: 1px;
+    background: var(--surface);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .loading-bar-fill {
+    height: 100%;
+    background: var(--gold);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div class="loading-screen" id="loading-screen">
+  <div class="loading-logo">FILTR</div>
+  <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
+</div>
+
+<!-- SCREEN: LANDING -->
+<div class="screen active" id="screen-landing">
+  <div class="landing-logo">
+    <h1>FILTR</h1>
+    <p>Discover your cinema</p>
+  </div>
+
+  <div class="landing-card">
+    <div class="field-label">TMDB API Key</div>
+    <input class="api-input" id="api-key-input" type="text" placeholder="Enter your API key…" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="begin-btn" id="begin-btn" onclick="handleBegin()">
+      <span id="begin-text">BEGIN</span>
+      <span>→</span>
+    </button>
+    <div class="landing-footer">
+      Get a free key at <a href="https://themoviedb.org" target="_blank">themoviedb.org</a><br>
+      Your key is stored only on this device.
+    </div>
+    <div class="error-toast" id="error-toast">Invalid key or network error</div>
+  </div>
+</div>
+
+<!-- SCREEN: APP -->
+<div class="screen" id="screen-app">
+
+  <div class="app-header">
+    <div class="header-top">
+      <div class="header-logo">FILTR</div>
+      <div class="header-actions">
+        <div class="icon-btn" id="search-toggle" onclick="toggleSearch()" title="Search">🔍</div>
+        <div class="icon-btn" onclick="handleLogout()" title="Change key">⚙</div>
+      </div>
+    </div>
+    <div class="search-bar" id="search-bar">
+      <input class="search-input" id="search-input" placeholder="Search films…" oninput="handleSearch(this.value)">
+    </div>
+  </div>
+
+  <div class="genre-strip" id="genre-strip">
+    <button class="chip active" data-id="0" onclick="selectGenre(0, this)">All</button>
+  </div>
+
+  <div class="section-label" id="section-label">TRENDING THIS WEEK</div>
+
+  <div class="movie-grid" id="movie-grid"></div>
+
+  <button class="load-more-btn" id="load-more-btn" onclick="loadMore()">LOAD MORE</button>
+
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-hero">
+      <img class="modal-backdrop" id="modal-backdrop" src="" alt="">
+      <div class="modal-hero-overlay"></div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-tagline" id="modal-tagline"></div>
+      <div class="modal-stats" id="modal-stats"></div>
+      <div class="modal-genres" id="modal-genres"></div>
+      <div class="modal-overview" id="modal-overview"></div>
+      <div class="modal-section-title" id="cast-label" style="display:none">TOP CAST</div>
+      <div class="cast-strip" id="cast-strip"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
+const IMG_BACKDROP = 'https://image.tmdb.org/t/p/w780';
+const IMG_FACE = 'https://image.tmdb.org/t/p/w185';
+let apiKey = '';
+let genres = [];
+let currentGenre = 0;
+let currentPage = 1;
+let currentSearch = '';
+let searchTimer = null;
+let isSearchMode = false;
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('filtr_key');
+  if (saved) {
+    apiKey = saved;
+    bootApp();
+  } else {
+    document.getElementById('loading-screen').classList.add('hidden');
+    const input = document.getElementById('api-key-input');
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') handleBegin(); });
+  }
+});
+
+// ── LANDING ──
+async function handleBegin() {
+  const input = document.getElementById('api-key-input');
+  const key = input.value.trim();
+  if (!key) return;
+
+  const btn = document.getElementById('begin-btn');
+  const btnText = document.getElementById('begin-text');
+  const errToast = document.getElementById('error-toast');
+  errToast.classList.remove('show');
+  btn.classList.add('loading');
+  btnText.textContent = 'CHECKING';
+
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${key}`);
+    if (!res.ok) throw new Error('bad key');
+    apiKey = key;
+    localStorage.setItem('filtr_key', key);
+    bootApp();
+  } catch (e) {
+    btn.classList.remove('loading');
+    btnText.textContent = 'BEGIN';
+    errToast.classList.add('show');
+  }
+}
+
+// ── BOOT ──
+async function bootApp() {
+  const loadingBar = document.getElementById('loading-bar-fill');
+  let progress = 0;
+  const tick = setInterval(() => {
+    progress = Math.min(progress + 12, 90);
+    loadingBar.style.width = progress + '%';
+  }, 120);
+
+  try {
+    await loadGenres();
+    clearInterval(tick);
+    loadingBar.style.width = '100%';
+    await new Promise(r => setTimeout(r, 250));
+  } catch(e) {
+    clearInterval(tick);
+  }
+
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('screen-landing').classList.remove('active');
+  document.getElementById('screen-app').classList.add('active');
+  showSkeletons();
+  await loadMovies(true);
+}
+
+// ── GENRES ──
+async function loadGenres() {
+  const res = await fetch(`https://api.themoviedb.org/3/genre/movie/list?api_key=${apiKey}`);
+  const data = await res.json();
+  genres = data.genres || [];
+  const strip = document.getElementById('genre-strip');
+  genres.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.dataset.id = g.id;
+    btn.textContent = g.name.toUpperCase();
+    btn.onclick = () => selectGenre(g.id, btn);
+    strip.appendChild(btn);
+  });
+}
+
+// ── GENRE SELECT ──
+function selectGenre(id, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentGenre = id;
+  currentPage = 1;
+  isSearchMode = false;
+  clearSearch();
+  updateSectionLabel();
+  showSkeletons();
+  loadMovies(true);
+}
+
+function updateSectionLabel() {
+  const lbl = document.getElementById('section-label');
+  if (isSearchMode) { lbl.textContent = 'SEARCH RESULTS'; return; }
+  if (currentGenre === 0) { lbl.textContent = 'TRENDING THIS WEEK'; }
+  else {
+    const g = genres.find(x => x.id === currentGenre);
+    lbl.textContent = g ? g.name.toUpperCase() : 'FILMS';
+  }
+}
+
+// ── LOAD MOVIES ──
+async function loadMovies(reset = false) {
+  document.getElementById('load-more-btn').style.display = 'none';
+  try {
+    let url;
+    if (isSearchMode && currentSearch.length > 1) {
+      url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(currentSearch)}&page=${currentPage}`;
+    } else if (currentGenre === 0) {
+      url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}&page=${currentPage}`;
+    } else {
+      url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&with_genres=${currentGenre}&sort_by=popularity.desc&page=${currentPage}`;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+    const movies = data.results || [];
+
+    renderMovies(movies, reset);
+    if (data.page < data.total_pages) {
+      document.getElementById('load-more-btn').style.display = 'block';
+    }
+  } catch (e) {
+    clearSkeletons();
+  }
+}
+
+// ── RENDER MOVIES ──
+function renderMovies(movies, reset) {
+  const grid = document.getElementById('movie-grid');
+  if (reset) grid.innerHTML = '';
+  else clearSkeletons();
+
+  movies.forEach(movie => {
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    card.onclick = () => openModal(movie.id);
+
+    const year = movie.release_date ? movie.release_date.substring(0, 4) : '';
+    const rating = movie.vote_average ? movie.vote_average.toFixed(1) : '';
+
+    if (movie.poster_path) {
+      card.innerHTML = `
+        <img class="movie-poster" src="${IMG_BASE}${movie.poster_path}" alt="${movie.title}" loading="lazy">
+        <div class="movie-overlay">
+          <div class="movie-title">${movie.title}</div>
+          <div class="movie-meta">
+            <span class="movie-year">${year}</span>
+            ${rating ? `<span class="movie-rating">★ ${rating}</span>` : ''}
+          </div>
+        </div>`;
+    } else {
+      card.innerHTML = `
+        <div class="movie-poster-placeholder">🎬</div>
+        <div class="movie-overlay">
+          <div class="movie-title">${movie.title}</div>
+          <div class="movie-meta">
+            <span class="movie-year">${year}</span>
+            ${rating ? `<span class="movie-rating">★ ${rating}</span>` : ''}
+          </div>
+        </div>`;
+    }
+
+    grid.appendChild(card);
+  });
+}
+
+// ── SKELETONS ──
+function showSkeletons() {
+  const grid = document.getElementById('movie-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'skeleton';
+    grid.appendChild(sk);
+  }
+  document.getElementById('load-more-btn').style.display = 'none';
+}
+
+function clearSkeletons() {
+  document.querySelectorAll('.skeleton').forEach(s => s.remove());
+}
+
+// ── LOAD MORE ──
+function loadMore() {
+  currentPage++;
+  loadMovies(false);
+}
+
+// ── SEARCH ──
+function toggleSearch() {
+  const bar = document.getElementById('search-bar');
+  const btn = document.getElementById('search-toggle');
+  const isVisible = bar.classList.contains('visible');
+  if (isVisible) {
+    bar.classList.remove('visible');
+    btn.classList.remove('active');
+    clearSearch();
+  } else {
+    bar.classList.add('visible');
+    btn.classList.add('active');
+    document.getElementById('search-input').focus();
+  }
+}
+
+function handleSearch(value) {
+  clearTimeout(searchTimer);
+  currentSearch = value;
+  if (value.length < 2) {
+    if (isSearchMode) { isSearchMode = false; currentPage = 1; updateSectionLabel(); showSkeletons(); loadMovies(true); }
+    return;
+  }
+  searchTimer = setTimeout(() => {
+    isSearchMode = true;
+    currentPage = 1;
+    updateSectionLabel();
+    showSkeletons();
+    loadMovies(true);
+  }, 400);
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  currentSearch = '';
+  currentPage = 1;
+  isSearchMode = false;
+  updateSectionLabel();
+}
+
+// ── MODAL ──
+async function openModal(id) {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Reset
+  document.getElementById('modal-title').textContent = '…';
+  document.getElementById('modal-tagline').textContent = '';
+  document.getElementById('modal-stats').innerHTML = '';
+  document.getElementById('modal-genres').innerHTML = '';
+  document.getElementById('modal-overview').textContent = '';
+  document.getElementById('cast-strip').innerHTML = '';
+  document.getElementById('cast-label').style.display = 'none';
+
+  try {
+    const [detailRes, creditsRes] = await Promise.all([
+      fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}`),
+      fetch(`https://api.themoviedb.org/3/movie/${id}/credits?api_key=${apiKey}`)
+    ]);
+    const detail = await detailRes.json();
+    const credits = await creditsRes.json();
+
+    // Backdrop
+    const bdEl = document.getElementById('modal-backdrop');
+    if (detail.backdrop_path) {
+      bdEl.src = IMG_BACKDROP + detail.backdrop_path;
+      bdEl.style.display = 'block';
+    } else if (detail.poster_path) {
+      bdEl.src = IMG_BASE + detail.poster_path;
+      bdEl.style.display = 'block';
+    } else {
+      bdEl.style.display = 'none';
+    }
+
+    document.getElementById('modal-title').textContent = detail.title;
+    document.getElementById('modal-tagline').textContent = detail.tagline || '';
+
+    const runtime = detail.runtime ? `${Math.floor(detail.runtime/60)}h ${detail.runtime%60}m` : '—';
+    const year = detail.release_date ? detail.release_date.substring(0,4) : '—';
+    const rating = detail.vote_average ? detail.vote_average.toFixed(1) : '—';
+    const votes = detail.vote_count ? detail.vote_count.toLocaleString() : '—';
+
+    document.getElementById('modal-stats').innerHTML = `
+      <div class="stat"><div class="stat-label">Rating</div><div class="stat-value gold">★ ${rating}</div></div>
+      <div class="stat"><div class="stat-label">Votes</div><div class="stat-value">${votes}</div></div>
+      <div class="stat"><div class="stat-label">Year</div><div class="stat-value">${year}</div></div>
+      <div class="stat"><div class="stat-label">Runtime</div><div class="stat-value">${runtime}</div></div>
+    `;
+
+    if (detail.genres && detail.genres.length) {
+      document.getElementById('modal-genres').innerHTML = detail.genres.map(g => `<span class="genre-tag">${g.name}</span>`).join('');
+    }
+
+    document.getElementById('modal-overview').textContent = detail.overview || '';
+
+    // Cast
+    const cast = (credits.cast || []).slice(0, 12);
+    if (cast.length) {
+      document.getElementById('cast-label').style.display = 'block';
+      document.getElementById('cast-strip').innerHTML = cast.map(c => `
+        <div class="cast-card">
+          <img class="cast-avatar" src="${c.profile_path ? IMG_FACE + c.profile_path : ''}" 
+               onerror="this.src=''" alt="${c.name}">
+          <div class="cast-name">${c.name}</div>
+        </div>
+      `).join('');
+    }
+
+  } catch (e) {
+    document.getElementById('modal-title').textContent = 'Error loading film';
+  }
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── LOGOUT ──
+function handleLogout() {
+  if (confirm('Change API key?')) {
+    localStorage.removeItem('filtr_key');
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>
